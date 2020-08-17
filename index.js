@@ -15,6 +15,7 @@ const args = [ 60, window.innerWidth / window.innerHeight, 1, 10000 ]
 const camera = new THREE.PerspectiveCamera( args[0], args[1], args[2], args[3] );
 camera.position.set( 1, 1, 3 );
 
+
 const controls = new OrbitControls( camera, renderer.domElement );
 const angle = 0;
 controls.addEventListener( 'change', render ); // use if there is no animation loop
@@ -27,7 +28,17 @@ controls.autoRotate = true;
 controls.maxPolarAngle = Math.PI / (2 - angle);
 controls.minPolarAngle = Math.PI - Math.PI / (2 - angle);
 controls.minPolarAngle = 0;
-controls.autoRotateSpeed = 0.2;
+
+
+window.onmousemove = logMouseMove;
+
+function logMouseMove(event) {
+  const multiplier = 0.6;
+  let e = event || window.event;
+  let speed = -(document.body.clientWidth / 2 - e.clientX) / document.body.clientWidth
+  controls.autoRotateSpeed = speed * multiplier;
+}
+
 
 scene.add( new THREE.HemisphereLight( 0xffffff, 0x000000, 1 ) );
 
