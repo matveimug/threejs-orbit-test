@@ -89,7 +89,7 @@ const loader = new GLTFLoader();
 
 function doModel(path, color) {
   loader.load( path, function ( gltf ) {
-    const norm = new THREE.TextureLoader().load( "norm.png" );
+    const norm = new THREE.TextureLoader().load( "normy.jpg" );
     norm.wrapS = THREE.RepeatWrapping;
     norm.wrapT = THREE.RepeatWrapping;
     norm.repeat.set( 6, 6 );
