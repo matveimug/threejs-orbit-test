@@ -6,20 +6,26 @@ import { GLTFLoader } from 'https://unpkg.com/three/examples/jsm/loaders/GLTFLoa
 const renderer = new THREE.WebGLRenderer( { antialias: true } );
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
-const bg = 0x9692ff
+
+function parseThreeColor(color) {
+  return ''
+}
+const bg = '#d6d6d6'
+const col_accent = '#ff0000'
+const col_main = '#cbcbcb'
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color( bg );
 
 const args = [ 60, window.innerWidth / window.innerHeight, 1, 10000 ]
 const camera = new THREE.PerspectiveCamera( args[0], args[1], args[2], args[3] );
-camera.position.set( 1, 1, 3 );
+camera.position.set( 1, 2, 3 );
 
 
 const controls = new OrbitControls( camera, renderer.domElement );
 const angle = 0;
 controls.addEventListener( 'change', render ); // use if there is no animation loop
-controls.target.set( 0, 0.75, 0 );
+controls.target.set( 0, 1, 0 );
 controls.update();
 controls.enablePan = false;
 controls.enableZoom  = false;
@@ -48,9 +54,11 @@ light.position.set( 2, 4, 8 );
 
 const shadowlight = new THREE.DirectionalLight( 0xffffff, 0 );
 scene.add( shadowlight );
-shadowlight.position.set( 0, 4, 3 );
+shadowlight.position.set( 0, 4, 0 );
 shadowlight.castShadow = true;
-shadowlight.shadow.radius = 8;
+shadowlight.shadow.radius = 16;
+shadowlight.shadow.mapSize.width = 1024;
+shadowlight.shadow.mapSize.height = 1024;
 
 THREE.ShaderLib[ 'lambert' ].fragmentShader = THREE.ShaderLib[ 'lambert' ].fragmentShader.replace(
 
@@ -78,26 +86,38 @@ renderer.shadowMapEnabled = true;
 renderer.shadowMapSoft = true;
 
 const loader = new GLTFLoader();
-loader.load( './donit.glb', function ( gltf ) {
 
-  var model = gltf.scene;
-  model.scale.set( 10, 10, 10 );
-  model.traverse(function(o) {
-    if (o.isMesh) {
-      o.castShadow = true;
-    }
-  });
+function doModel(path, color) {
+  loader.load( path, function ( gltf ) {
+    const norm = new THREE.TextureLoader().load( "norm.png" );
+    norm.wrapS = THREE.RepeatWrapping;
+    norm.wrapT = THREE.RepeatWrapping;
+    norm.repeat.set( 6, 6 );
+    const vect = new THREE.Vector2( 1, 0.5 );
+    const mat = new THREE.MeshStandardMaterial({
+      color: color,
+      normalMap: norm,
+      normalScale: vect
+    });
+    const model = gltf.scene;
+    model.scale.set( 10, 10, 10 );
+    model.position.set( 0, 0.3, 0 );
+    model.traverse(function(o) {
+      if (o.isMesh) {
+        o.material = mat
+        o.castShadow = true;
+      }
+    });
+    scene.add( model );
+    animate();
+  }, undefined, function ( e ) {
+    console.error( e );
 
-  scene.add( model );
+  } );
+}
 
-  animate();
-
-}, undefined, function ( e ) {
-
-  console.error( e );
-
-} );
-
+doModel('./klap_accent.glb', col_accent);
+doModel('./klap_main.glb', col_main);
 
 window.addEventListener( 'resize', onWindowResize, false );
 
