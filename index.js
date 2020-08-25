@@ -87,17 +87,19 @@ renderer.shadowMapSoft = true;
 
 const loader = new GLTFLoader();
 
-function doModel(path, color) {
+function doModel(path, color, diff_path) {
   loader.load( path, function ( gltf ) {
-    const norm = new THREE.TextureLoader().load( "normy.jpg" );
+    const diff = new THREE.TextureLoader().load( diff_path );
+    const norm = new THREE.TextureLoader().load( './textures/normal.png' );
     norm.wrapS = THREE.RepeatWrapping;
     norm.wrapT = THREE.RepeatWrapping;
     norm.repeat.set( 6, 6 );
-    const vect = new THREE.Vector2( 1, 0.5 );
+    const vect = new THREE.Vector2( 1, 1 );
     const mat = new THREE.MeshStandardMaterial({
-      color: color,
+      // color: color,
       normalMap: norm,
-      normalScale: vect
+      normalScale: vect,
+      map: diff
     });
     const model = gltf.scene;
     model.scale.set( 10, 10, 10 );
@@ -116,8 +118,8 @@ function doModel(path, color) {
   } );
 }
 
-doModel('./klap_accent.glb', col_accent);
-doModel('./klap_main.glb', col_main);
+doModel('./klap_main.glb', col_main, './textures/diff_main.jpg');
+doModel('./klap_accent.glb', col_accent,'./textures/diff_accent.jpg');
 
 window.addEventListener( 'resize', onWindowResize, false );
 
