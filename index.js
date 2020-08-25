@@ -90,11 +90,15 @@ const loader = new GLTFLoader();
 function doModel(path, color, diff_path) {
   loader.load( path, function ( gltf ) {
     const diff = new THREE.TextureLoader().load( diff_path );
+    diff.wrapS = THREE.RepeatWrapping;
+    diff.wrapT = THREE.RepeatWrapping;
+    const scale = 2;
+    diff.repeat.set( scale, scale );
     const norm = new THREE.TextureLoader().load( './textures/normal.png' );
     norm.wrapS = THREE.RepeatWrapping;
     norm.wrapT = THREE.RepeatWrapping;
     norm.repeat.set( 6, 6 );
-    const vect = new THREE.Vector2( 1, 1 );
+    const vect = new THREE.Vector2( 0.5, 1 );
     const mat = new THREE.MeshStandardMaterial({
       // color: color,
       normalMap: norm,
