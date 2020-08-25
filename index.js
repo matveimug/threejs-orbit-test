@@ -92,7 +92,7 @@ function doModel(path, color, diff_path) {
     const diff = new THREE.TextureLoader().load( diff_path );
     diff.wrapS = THREE.RepeatWrapping;
     diff.wrapT = THREE.RepeatWrapping;
-    const scale = 2;
+    const scale = 1;
     diff.repeat.set( scale, scale );
     const norm = new THREE.TextureLoader().load( './textures/normal.png' );
     norm.wrapS = THREE.RepeatWrapping;
