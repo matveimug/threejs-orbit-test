@@ -122,6 +122,7 @@ function doModel(path, color, diff_path) {
   } );
 }
 
+doModel('./klap_frame.glb', col_main, './textures/diff_main.jpg');
 doModel('./klap_main.glb', col_main, './textures/diff_main.jpg');
 doModel('./klap_accent.glb', col_accent,'./textures/diff_accent.jpg');
 
