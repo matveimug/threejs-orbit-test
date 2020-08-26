@@ -98,7 +98,7 @@ function doModel(path, color, diff_path) {
     norm.wrapS = THREE.RepeatWrapping;
     norm.wrapT = THREE.RepeatWrapping;
     norm.repeat.set( 6, 6 );
-    const vect = new THREE.Vector2( 0.5, 1 );
+    const vect = new THREE.Vector2( 0.5, 0.5 );
     const mat = new THREE.MeshStandardMaterial({
       // color: color,
       normalMap: norm,
