@@ -1,7 +1,10 @@
-import * as THREE from 'https://cdn.skypack.dev/three'
+import * as THREE from 'https://cdn.skypack.dev/three';
 import { OrbitControls } from 'https://cdn.skypack.dev/three/examples/jsm/controls/OrbitControls.js';
+import { GUI } from 'https://cdn.skypack.dev/three/examples/jsm/libs/dat.gui.module.js';
+import Stats from 'https://cdn.skypack.dev/three/examples/jsm/libs/stats.module.js';
 import { GLTFLoader } from 'https://cdn.skypack.dev/three/examples/jsm/loaders/GLTFLoader.js';
-
+import { EffectComposer } from 'https://cdn.skypack.dev/three/examples/jsm/postprocessing/EffectComposer.js';
+import { SSAOPass } from 'https://cdn.skypack.dev/three/examples/jsm/postprocessing/SSAOPass.js';
 
 const renderer = new THREE.WebGLRenderer( { antialias: true } );
 renderer.setSize( window.innerWidth, window.innerHeight );
@@ -22,6 +25,13 @@ const args = [ 60, window.innerWidth / window.innerHeight, 1, 10000 ]
 const camera = new THREE.PerspectiveCamera( args[0], args[1], args[2], args[3] );
 camera.position.set( 10, 20, 30 );
 
+const composer = new EffectComposer( renderer );
+
+const ssaoPass = new SSAOPass( scene, camera, window.innerWidth, window.innerHeight );
+ssaoPass.kernelRadius = 1;
+ssaoPass.minDistance = 0.001;
+ssaoPass.maxDistance = 0.1;
+composer.addPass( ssaoPass );
 
 const controls = new OrbitControls( camera, renderer.domElement );
 const angle = 0;
@@ -47,17 +57,22 @@ function logMouseMove(event) {
 }
 
 
-const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444 );
+
+
+const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444, 0.5 );
 hemiLight.position.set( 0, 200, 0 );
 scene.add( hemiLight );
 
-const directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
+const directionalLight = new THREE.DirectionalLight( 0xffffff, 1.5 );
 directionalLight.position.set( 0, 200, 100 );
 directionalLight.castShadow = true;
 directionalLight.shadow.camera.top = 180;
 directionalLight.shadow.camera.bottom = - 100;
 directionalLight.shadow.camera.left = - 120;
 directionalLight.shadow.camera.right = 120;
+directionalLight.shadow.radius = 32;
+directionalLight.shadow.mapSize.width = 512; // default is 512
+directionalLight.shadow.mapSize.height = 512; // default is 512
 scene.add( directionalLight );
 
 // ground
@@ -95,16 +110,21 @@ scene.add( floor );
 
 
 const blockMaterial = new THREE.MeshLambertMaterial( { color: 0xffffff } );
-const citySize = 40;
+const radius = 20;
 
 for ( let i = 0; i < 500; i ++ ) {
-  const blockHeight = Math.random() * 20;
-  const blockWidth = Math.random() * 2;
+  var pt_angle = Math.random() * 2 * Math.PI;
+  var pt_radius_sq = Math.random() * radius * radius;
+  var pt_x = Math.sqrt(pt_radius_sq) * Math.cos(pt_angle);
+  var pt_y = Math.sqrt(pt_radius_sq) * Math.sin(pt_angle);
+  const blockHeight = (radius - (Math.abs(pt_x) + Math.abs(pt_y)) / 2) * Math.random() * 2;
+  console.log(pt_x, pt_y, "bh: ", blockHeight)
+  const blockWidth = 0.2 + Math.random() * 2;
   const block = new THREE.BoxGeometry( blockWidth, blockHeight, blockWidth );
   const mesh = new THREE.Mesh( block, blockMaterial );
-  mesh.position.x = Math.random() * citySize - citySize/2;
+  mesh.position.x = pt_x;
   mesh.position.y = 0;
-  mesh.position.z = Math.random() * citySize - citySize/2;
+  mesh.position.z = pt_y;
   mesh.updateMatrix();
   mesh.matrixAutoUpdate = false;
   mesh.castShadow = true;
@@ -114,7 +134,28 @@ for ( let i = 0; i < 500; i ++ ) {
 }
 
 renderer.shadowMap.enabled = true;
-renderer.shadowMapSoft = true;
+// renderer.shadowMapSoft = true;
+renderer.shadowMapType = THREE.PCFSoftShadowMap;
+
+// Init gui
+const gui = new GUI();
+
+gui.add( ssaoPass, 'output', {
+  'Default': SSAOPass.OUTPUT.Default,
+  'SSAO Only': SSAOPass.OUTPUT.SSAO,
+  'SSAO Only + Blur': SSAOPass.OUTPUT.Blur,
+  'Beauty': SSAOPass.OUTPUT.Beauty,
+  'Depth': SSAOPass.OUTPUT.Depth,
+  'Normal': SSAOPass.OUTPUT.Normal
+} ).onChange( function ( value ) {
+
+  ssaoPass.output = parseInt( value );
+
+} );
+gui.add( ssaoPass, 'kernelRadius' ).min( 0 ).max( 32 );
+gui.add( ssaoPass, 'minDistance' ).min( 0.001 ).max( 0.02 );
+gui.add( ssaoPass, 'maxDistance' ).min( 0.01 ).max( 0.3 );
+// gui.add( directionalLight.shadow, 'radius' ).min( 1 ).max( 128 );
 
 // const loader = new GLTFLoader();
 
@@ -156,6 +197,10 @@ renderer.shadowMapSoft = true;
 // doModel('./klap_frame.glb', col_main, './textures/diff_main.jpg');
 // doModel('./klap_main.glb', col_main, './textures/diff_main.jpg');
 // doModel('./klap_accent.glb', col_accent,'./textures/diff_accent.jpg');
+let container = document.createElement( 'div' );
+    document.body.appendChild( container );
+let stats = new Stats();
+container.appendChild( stats.dom );
 
 window.addEventListener( 'resize', onWindowResize, false );
 animate();
@@ -166,8 +211,9 @@ function animate() {
 
   // required if controls.enableDamping or controls.autoRotate are set to true
   controls.update();
-
+  stats.begin();
   renderer.render( scene, camera );
+  stats.end();
 
 }
 
@@ -178,12 +224,10 @@ function onWindowResize() {
   camera.updateProjectionMatrix();
 
   renderer.setSize( window.innerWidth, window.innerHeight );
-
   render();
-
 }
 function render() {
 
-  renderer.render( scene, camera );
+  composer.render( scene, camera );
 
 }
