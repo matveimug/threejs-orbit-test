@@ -10,16 +10,17 @@ document.body.appendChild( renderer.domElement );
 function parseThreeColor(color) {
   return ''
 }
-const bg = '#d6d6d6'
+const bg = '#fff'
 const col_accent = '#ff0000'
 const col_main = '#cbcbcb'
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color( bg );
+scene.fog = new THREE.FogExp2( bg, 0.03 );
 
 const args = [ 60, window.innerWidth / window.innerHeight, 1, 10000 ]
 const camera = new THREE.PerspectiveCamera( args[0], args[1], args[2], args[3] );
-camera.position.set( 1, 2, 3 );
+camera.position.set( 10, 20, 30 );
 
 
 const controls = new OrbitControls( camera, renderer.domElement );
@@ -46,87 +47,118 @@ function logMouseMove(event) {
 }
 
 
-scene.add( new THREE.HemisphereLight( 0xffffff, 0x000000, 1 ) );
+const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444 );
+hemiLight.position.set( 0, 200, 0 );
+scene.add( hemiLight );
 
-const light = new THREE.DirectionalLight( 0xffffff, 0.2 );
-scene.add( light );
-light.position.set( 2, 4, 8 );
+const directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
+directionalLight.position.set( 0, 200, 100 );
+directionalLight.castShadow = true;
+directionalLight.shadow.camera.top = 180;
+directionalLight.shadow.camera.bottom = - 100;
+directionalLight.shadow.camera.left = - 120;
+directionalLight.shadow.camera.right = 120;
+scene.add( directionalLight );
 
-const shadowlight = new THREE.DirectionalLight( 0xffffff, 0 );
-scene.add( shadowlight );
-shadowlight.position.set( 0, 4, 0 );
-shadowlight.castShadow = true;
-shadowlight.shadow.radius = 16;
-shadowlight.shadow.mapSize.width = 1024;
-shadowlight.shadow.mapSize.height = 1024;
+// ground
 
-THREE.ShaderLib[ 'lambert' ].fragmentShader = THREE.ShaderLib[ 'lambert' ].fragmentShader.replace(
-
-    `vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;`,
-
-    `#ifndef CUSTOM
-        vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;
-    #else
-        vec3 outgoingLight = diffuseColor.rgb * ( 1.0 - 0.3 * ( 1.0 - getShadowMask() ) ); // shadow intensity hardwired to 0.5 here
-    #endif`
-
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry( 2000, 2000 ),
+  new THREE.MeshPhongMaterial( { color: 0x999999, depthWrite: false } )
 );
+ground.rotation.x = - Math.PI / 2;
+ground.position.y = - 75;
+ground.receiveShadow = true;
+scene.add( ground );
+
+// THREE.ShaderLib[ 'lambert' ].fragmentShader = THREE.ShaderLib[ 'lambert' ].fragmentShader.replace(
+
+//     `vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;`,
+
+//     `#ifndef CUSTOM
+//         vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;
+//     #else
+//         vec3 outgoingLight = diffuseColor.rgb * ( 1.0 - 0.3 * ( 1.0 - getShadowMask() ) ); // shadow intensity hardwired to 0.5 here
+//     #endif`
+
+// );
 
 const material = new THREE.MeshLambertMaterial( { color: bg } );
 material.defines = material.defines || {};
 material.defines.CUSTOM = "";
 
-var geometry = new THREE.PlaneGeometry( 1000, 1000, 1, 1 );
-var floor = new THREE.Mesh( new THREE.PlaneBufferGeometry( 100, 100 ), material );
+const geometry = new THREE.PlaneGeometry( 10000, 10000, 1, 1 );
+const floor = new THREE.Mesh( new THREE.PlaneBufferGeometry( 10000, 10000 ), material );
 floor.rotation.x = - Math.PI / 2;
 floor.receiveShadow = true;
 scene.add( floor );
 
-renderer.shadowMapEnabled = true;
-renderer.shadowMapSoft = true;
 
-const loader = new GLTFLoader();
+const blockMaterial = new THREE.MeshLambertMaterial( { color: 0xffffff } );
+const citySize = 40;
 
-function doModel(path, color, diff_path) {
-  loader.load( path, function ( gltf ) {
-    const diff = new THREE.TextureLoader().load( diff_path );
-    diff.wrapS = THREE.RepeatWrapping;
-    diff.wrapT = THREE.RepeatWrapping;
-    const scale = 1.14;
-    diff.repeat.set( scale, scale );
-    const norm = new THREE.TextureLoader().load( './textures/normal.png' );
-    norm.wrapS = THREE.RepeatWrapping;
-    norm.wrapT = THREE.RepeatWrapping;
-    norm.repeat.set( 6, 6 );
-    const vect = new THREE.Vector2( 0.5, 0.5 );
-    const mat = new THREE.MeshStandardMaterial({
-      // color: color,
-      normalMap: norm,
-      normalScale: vect,
-      map: diff
-    });
-    const model = gltf.scene;
-    model.scale.set( 10, 10, 10 );
-    model.position.set( 0, 0.3, 0 );
-    model.traverse(function(o) {
-      if (o.isMesh) {
-        o.material = mat
-        o.castShadow = true;
-      }
-    });
-    scene.add( model );
-    animate();
-  }, undefined, function ( e ) {
-    console.error( e );
+for ( let i = 0; i < 500; i ++ ) {
+  const blockHeight = Math.random() * 20;
+  const blockWidth = Math.random() * 2;
+  const block = new THREE.BoxGeometry( blockWidth, blockHeight, blockWidth );
+  const mesh = new THREE.Mesh( block, blockMaterial );
+  mesh.position.x = Math.random() * citySize - citySize/2;
+  mesh.position.y = 0;
+  mesh.position.z = Math.random() * citySize - citySize/2;
+  mesh.updateMatrix();
+  mesh.matrixAutoUpdate = false;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  scene.add( mesh );
 
-  } );
 }
 
-doModel('./klap_frame.glb', col_main, './textures/diff_main.jpg');
-doModel('./klap_main.glb', col_main, './textures/diff_main.jpg');
-doModel('./klap_accent.glb', col_accent,'./textures/diff_accent.jpg');
+renderer.shadowMap.enabled = true;
+renderer.shadowMapSoft = true;
+
+// const loader = new GLTFLoader();
+
+// function doModel(path, color, diff_path) {
+//   loader.load( path, function ( gltf ) {
+//     const diff = new THREE.TextureLoader().load( diff_path );
+//     diff.wrapS = THREE.RepeatWrapping;
+//     diff.wrapT = THREE.RepeatWrapping;
+//     const scale = 1.14;
+//     diff.repeat.set( scale, scale );
+//     const norm = new THREE.TextureLoader().load( './textures/normal.png' );
+//     norm.wrapS = THREE.RepeatWrapping;
+//     norm.wrapT = THREE.RepeatWrapping;
+//     norm.repeat.set( 6, 6 );
+//     const vect = new THREE.Vector2( 0.5, 0.5 );
+//     const mat = new THREE.MeshStandardMaterial({
+//       // color: color,
+//       normalMap: norm,
+//       normalScale: vect,
+//       map: diff
+//     });
+//     const model = gltf.scene;
+//     model.scale.set( 10, 10, 10 );
+//     model.position.set( 0, 0.3, 0 );
+//     model.traverse(function(o) {
+//       if (o.isMesh) {
+//         o.material = mat
+//         o.castShadow = true;
+//       }
+//     });
+//     scene.add( model );
+//     animate();
+//   }, undefined, function ( e ) {
+//     console.error( e );
+
+//   } );
+// }
+
+// doModel('./klap_frame.glb', col_main, './textures/diff_main.jpg');
+// doModel('./klap_main.glb', col_main, './textures/diff_main.jpg');
+// doModel('./klap_accent.glb', col_accent,'./textures/diff_accent.jpg');
 
 window.addEventListener( 'resize', onWindowResize, false );
+animate();
 
 function animate() {
 
