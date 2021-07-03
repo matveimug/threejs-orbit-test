@@ -8,13 +8,15 @@ import { RenderPass } from "https://cdn.skypack.dev/three/examples/jsm/postproce
 import { SSAOPass } from "https://cdn.skypack.dev/three/examples/jsm/postprocessing/SSAOPass.js";
 import { FilmPass } from "https://cdn.skypack.dev/three/examples/jsm/postprocessing/FilmPass.js";
 import { BloomPass } from "https://cdn.skypack.dev/three/examples/jsm/postprocessing/BloomPass.js";
+import { CinematicCamera } from 'https://cdn.skypack.dev/three/examples/jsm/cameras/CinematicCamera.js';
+import * as TWEEN from 'https://cdn.skypack.dev/@tweenjs/tween.js';
 
 let container, stats;
-let camera, lights, scene, renderer;
+let camera, lights, scene, renderer, clock;
 let composer;
 let group;
 let controls;
-let ssaoPass, bloomPass, filmPass;
+let renderPass, ssaoPass, bloomPass, filmPass;
 
 // colors
 const bg = "#fff";
@@ -34,7 +36,8 @@ function createScene() {
   document.body.appendChild(renderer.domElement);
 
   const args = [60, window.innerWidth / window.innerHeight, 1, 10000];
-  camera = new THREE.PerspectiveCamera(args[0], args[1], args[2], args[3]);
+  camera = new CinematicCamera(args[0], args[1], args[2], args[3]);
+  camera.setLens( 15, camera.frameHeight, 1, camera.cbc );
   camera.position.set(100, 200, 300);
 
   scene = new THREE.Scene();
@@ -52,31 +55,57 @@ function createOrbit() {
   controls.enableZoom = false;
   controls.enableDamping = true;
   controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.05;
   controls.maxPolarAngle = Math.PI / (2 - angle);
-  controls.minPolarAngle = Math.PI - Math.PI / (2 - angle);
+  // controls.minPolarAngle = Math.PI - Math.PI / (2 - angle);
   controls.minPolarAngle = 0;
-
-  window.onmousemove = logMouseMove;
+  // window.onmousemove = logMouseMove;
 }
+
+window.changeOrbit = changeOrbit;
+function changeOrbit(xPos,yPos,zPos,xTarget,yTarget,zTarget) {
+  const coords = {x: camera.position.x, y: camera.position.y, z: camera.position.z}
+  const newCoords = {x: xPos, y: yPos, z: zPos}
+  const target = {x: controls.target.x, y: controls.target.y, z: controls.target.z}
+  const newTarget = {x: xTarget, y: yTarget, z: zTarget}
+  new TWEEN.Tween(coords)
+      .to({ x: newCoords.x, y: newCoords.y, z: newCoords.z})
+      .easing(TWEEN.Easing.Quadratic.Out)
+      .onUpdate(() =>
+        camera.position.set(coords.x, coords.y, coords.z)
+      )
+      .start();
+  new TWEEN.Tween(target)
+      .to({ x: newTarget.x, y: newTarget.y, z: newTarget.z})
+      .easing(TWEEN.Easing.Quadratic.Out)
+      .onUpdate(() =>
+        controls.target.set(target.x, target.y, target.z)
+      )
+      .start();
+  controls.update();
+}
+
 function createLights() {
   lights = {
-    directionalStrength: 1.5,
+    directionalStrength: 1.12,
     hemiStrength: 0.5,
-    shadowMapSize: 512,
-    shadowRadius: 32,
+    shadowMapSize: 2*512,
+    shadowRadius: 4,
+    d: 220
   };
 
-  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, lights.hemiStrength);
+  const hemiLight = new THREE.HemisphereLight(0xddddff, 0x444444, lights.hemiStrength);
   hemiLight.position.set(0, 200, 0);
   scene.add(hemiLight);
 
-  const directionalLight = new THREE.DirectionalLight(0xffffff, lights.directionalStrength);
-  directionalLight.position.set(0, 200, 100);
+  const d = lights.d;
+  const directionalLight = new THREE.DirectionalLight(0xddddff, lights.directionalStrength);
+  directionalLight.position.set(100, 80, 100);
   directionalLight.castShadow = true;
-  directionalLight.shadow.camera.top = 180;
-  directionalLight.shadow.camera.bottom = -100;
-  directionalLight.shadow.camera.left = -120;
-  directionalLight.shadow.camera.right = 120;
+  directionalLight.shadow.camera.left = - d;
+  directionalLight.shadow.camera.right = d;
+  directionalLight.shadow.camera.top = d;
+  directionalLight.shadow.camera.bottom = - d;
   directionalLight.shadow.radius = lights.shadowRadius;
   directionalLight.shadow.mapSize.width = lights.shadowMapSize; // default is 512
   directionalLight.shadow.mapSize.height = lights.shadowMapSize; // default is 512
@@ -89,7 +118,6 @@ function createFloor() {
   scene.add(group);
 
   const material = new THREE.MeshLambertMaterial({ color: bg });
-  const geometry = new THREE.PlaneGeometry(10000, 10000, 1, 1);
   const floor = new THREE.Mesh(new THREE.PlaneBufferGeometry(10000, 10000), material);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
@@ -98,7 +126,7 @@ function createFloor() {
 
 function createCity() {
   // city
-  const blockMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  const blockMaterial = new THREE.MeshLambertMaterial({ color: bg });
   const radius = 200;
 
   for (let i = 0; i < 500; i++) {
@@ -129,25 +157,28 @@ function doPost() {
 
   composer = new EffectComposer(renderer);
 
+  renderPass = new RenderPass( scene, camera );
+  composer.addPass( renderPass );
+
   ssaoPass = new SSAOPass(scene, camera, width, height);
-  ssaoPass.kernelRadius = 14;
+  ssaoPass.kernelRadius = 0.8
   ssaoPass.minDistance = 0.001;
-  ssaoPass.maxDistance = 0.01;
+  ssaoPass.maxDistance = 0.005;
   composer.addPass(ssaoPass);
-  
+
   bloomPass = new BloomPass(
-    1, // strength
-    2, // kernel size
+    1.6, // strength
+    0,8, // kernel size
     0.1, // sigma ?
-    1024 // blur render target resolution
+    512 // blur render target resolution
   );
-  composer.addPass(bloomPass);
+  // composer.addPass(bloomPass);
 
   filmPass = new FilmPass(
     0.4, // noise intensity
     0.025, // scanline intensity
     648, // scanline count
-    true // grayscale
+    false // grayscale
   );
   filmPass.renderToScreen = true;
   composer.addPass(filmPass);
@@ -188,14 +219,16 @@ function onWindowResize() {
   composer.setSize(width, height);
 }
 
-function animate() {
+function animate(time) {
   requestAnimationFrame(animate);
   controls.update();
   stats.begin();
   render();
   stats.end();
+  TWEEN.update(time);
 }
 
 function render() {
+  renderer.shadowMap.enabled = true;
   composer.render();
 }
