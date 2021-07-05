@@ -127,7 +127,7 @@ function createFloor() {
 function createCity() {
   // city
   const blockMaterial = new THREE.MeshLambertMaterial({ color: bg });
-  const radius = 200;
+  const radius = 220;
 
   for (let i = 0; i < 500; i++) {
     var pt_angle = Math.random() * 2 * Math.PI;
@@ -175,7 +175,7 @@ function doPost() {
   // composer.addPass(bloomPass);
 
   filmPass = new FilmPass(
-    0.4, // noise intensity
+    0.1, // noise intensity
     0.025, // scanline intensity
     648, // scanline count
     false // grayscale
